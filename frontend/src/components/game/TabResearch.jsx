@@ -10,8 +10,8 @@ function formatNum(n) {
 
 export default function TabResearch({ state, derived, lang, launchProject, releaseUpdate, tutorialStep }) {
   return (
-    <div className="space-y-4" data-testid="tab-research">
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-3 md:space-y-4" data-testid="tab-research">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {PROJECT_TEMPLATES.map((tpl) => {
           const locked = state.officeTier < tpl.minOffice;
           const busy = !!state.activeProject;

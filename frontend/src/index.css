@@ -133,6 +133,67 @@ body::before {
     cursor: pointer;
     transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     text-transform: uppercase;
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.sm-btn:hover {
+    background: #18233a;
+    border-color: var(--sm-neon-cyan);
+    box-shadow: 0 0 18px rgba(0, 212, 255, 0.22);
+}
+
+/* Event stack: desktop right-top; mobile bottom sheet */
+.sm-event-stack {
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    pointer-events: auto;
+}
+@media (max-width: 640px) {
+    .sm-event-stack {
+        right: 8px;
+        left: 8px;
+        top: auto;
+        bottom: 8px;
+        width: auto;
+        max-width: none;
+    }
+}
+
+/* Tutorial overlay wrapper */
+.sm-tutorial-wrap {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 60;
+    pointer-events: none;
+}
+@media (max-width: 640px) {
+    .sm-tutorial-wrap {
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+    }
+}
+
+/* Hide horizontal scrollbar but keep scrollable */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe-area respect on iOS */
+@supports (padding: env(safe-area-inset-bottom)) {
+    body {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
 }
 
 .sm-btn:hover {

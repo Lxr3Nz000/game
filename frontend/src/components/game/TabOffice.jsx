@@ -9,10 +9,10 @@ export default function TabOffice({ state, derived, lang, buyDesk, tutorialStep 
   const highlight = tutorialStep === 1 ? "tut-highlight" : "";
 
   return (
-    <div className="grid md:grid-cols-3 gap-4" data-testid="tab-office">
-      <div className="sm-panel p-5 md:col-span-1">
-        <div className="sm-heading text-lg mb-2">{t(lang, "office.title")}</div>
-        <div className="text-sm text-[color:var(--sm-text-dim)] mb-4">
+    <div className="grid md:grid-cols-3 gap-3 md:gap-4" data-testid="tab-office">
+      <div className="sm-panel p-4 md:p-5 md:col-span-1">
+        <div className="sm-heading text-base md:text-lg mb-2">{t(lang, "office.title")}</div>
+        <div className="text-xs md:text-sm text-[color:var(--sm-text-dim)] mb-3 md:mb-4">
           {t(lang, "office.capacity")}: <span className="neon-cyan">{state.desks}/{office.capacity}</span>
         </div>
         <button
@@ -30,15 +30,15 @@ export default function TabOffice({ state, derived, lang, buyDesk, tutorialStep 
         )}
       </div>
 
-      <div className="sm-panel p-5 md:col-span-2">
-        <div className="sm-heading text-lg mb-2">
+      <div className="sm-panel p-4 md:p-5 md:col-span-2">
+        <div className="sm-heading text-base md:text-lg mb-2">
           {office.name[lang]} <span className="text-xs text-[color:var(--sm-text-dim)]">TIER {office.tier}</span>
         </div>
-        <div className="text-sm text-[color:var(--sm-text-dim)] mb-3">{office.tagline[lang]}</div>
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <Stat label={t(lang, "hud.office")} value={`${state.desks}/${office.capacity} ${t(lang, "office.desks")}`} />
+        <div className="text-xs md:text-sm text-[color:var(--sm-text-dim)] mb-3">{office.tagline[lang]}</div>
+        <div className="grid grid-cols-3 gap-2 md:gap-3 text-xs md:text-sm">
+          <Stat label={t(lang, "hud.office")} value={`${state.desks}/${office.capacity}`} />
           <Stat label="Speed" value={`+${office.bonus.speed}%`} color="neon-green" />
-          <Stat label="Creativity" value={`+${office.bonus.creativity}%`} color="neon-cyan" />
+          <Stat label="Creat." value={`+${office.bonus.creativity}%`} color="neon-cyan" />
         </div>
       </div>
     </div>

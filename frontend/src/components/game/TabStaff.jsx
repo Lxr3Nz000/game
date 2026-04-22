@@ -7,8 +7,8 @@ export default function TabStaff({ state, derived, lang, hireStaff, tutorialStep
   const freeDesks = state.desks - state.staff.length;
 
   return (
-    <div className="space-y-4" data-testid="tab-staff">
-      <div className="grid md:grid-cols-3 gap-4">
+    <div className="space-y-3 md:space-y-4" data-testid="tab-staff">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {STAFF_ROLES.map((role, i) => {
           const canAfford = state.cash >= role.cost;
           const canSeat = freeDesks > 0 && state.staff.length < office.capacity;

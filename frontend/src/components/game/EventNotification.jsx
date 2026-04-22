@@ -5,16 +5,7 @@ export default function EventNotification({ events, onDismiss }) {
   if (!events || events.length === 0) return null;
   return (
     <div
-      style={{
-        position: "fixed",
-        right: 16,
-        top: 16,
-        zIndex: 70,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        width: 320,
-      }}
+      className="sm-event-stack"
       data-testid="event-stack"
     >
       {events.slice(-4).map((ev) => (
@@ -28,21 +19,21 @@ export default function EventNotification({ events, onDismiss }) {
         >
           <div className="flex items-start justify-between gap-2">
             <div
-              className={`sm-heading text-sm ${ev.positive ? "neon-green" : "neon-red"}`}
+              className={`sm-heading text-xs md:text-sm ${ev.positive ? "neon-green" : "neon-red"}`}
             >
               &gt; {ev.title}
             </div>
             <button
               onClick={() => onDismiss(ev.id)}
-              className="text-[color:var(--sm-text-dim)] hover:text-white"
+              className="text-[color:var(--sm-text-dim)] hover:text-white shrink-0 p-1"
               data-testid={`event-dismiss-${ev.id}`}
               aria-label="dismiss"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
           {ev.message && (
-            <div className="text-xs mt-1 text-[color:var(--sm-text-dim)]">{ev.message}</div>
+            <div className="text-[11px] md:text-xs mt-1 text-[color:var(--sm-text-dim)]">{ev.message}</div>
           )}
         </div>
       ))}

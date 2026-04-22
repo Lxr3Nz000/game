@@ -10,8 +10,8 @@ function fmt(n) {
 
 export default function TabRealEstate({ state, lang, upgradeOffice }) {
   return (
-    <div className="space-y-4" data-testid="tab-realestate">
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-3 md:space-y-4" data-testid="tab-realestate">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {OFFICES.map((o) => {
           const isCurrent = state.officeTier === o.tier;
           const isPast = state.officeTier > o.tier;

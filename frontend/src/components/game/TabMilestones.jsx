@@ -5,7 +5,7 @@ import { Trophy, Lock } from "lucide-react";
 
 export default function TabMilestones({ state, lang }) {
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="tab-milestones">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="tab-milestones">
       {MILESTONES.map((m) => {
         const unlocked = state.milestonesUnlocked.includes(m.id);
         const rewardText = [];
