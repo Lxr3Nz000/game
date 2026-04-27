@@ -14,8 +14,11 @@ import DifficultyModal from "../components/game/DifficultyModal";
 import MarketingPanel from "../components/game/MarketingPanel";
 import DecisionModal from "../components/game/DecisionModal";
 import PrestigeModal from "../components/game/PrestigeModal";
+import AchievementToast from "../components/game/AchievementToast";
+import StreakBanner from "../components/game/StreakBanner";
 import { useGameState } from "../game/useGameState";
 import { DECISIONS } from "../game/difficulty";
+import { evaluateStreak, markClaimed } from "../game/streak";
 import { t } from "../game/i18n";
 import { sfx } from "../game/sfx";
 import { Building2, Users, FlaskConical, Store, Trophy, LineChart as LChart } from "lucide-react";
@@ -149,6 +152,20 @@ export default function GamePage() {
       </div>
 
       <EventNotification events={state.activeEvents} onDismiss={game.dismissEvent} />
+
+      <AchievementToast
+        queue={state.achievementQueue || []}
+        lang={lang}
+        onConsume={game.consumeAchievement}
+      />
+
+      <StreakBanner
+        open={!!streakInfo && !needsDifficulty}
+        streak={streakInfo?.streak || 1}
+        reward={streakInfo?.reward || 0}
+        lang={lang}
+        onClaim={claimStreak}
+      />
 
       <GemShop open={shopOpen} onClose={() => setShopOpen(false)}
         state={state} lang={lang} onPurchase={game.purchaseGem} />

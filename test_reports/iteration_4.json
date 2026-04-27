@@ -1,0 +1,57 @@
+{
+  "summary": "Iteration 4 testing BLOCKED. Backend pytest still 6/6 green. Frontend FAILS TO RENDER on mobile (390x844) due to two ReferenceErrors in the new iter-4 wiring — entire <GamePage> crashes; React falls back to nothing so the app renders a blank dark grid with only 'Made with Emergent' badge. No data-testid='game-root' ever mounts, which makes ALL 17 frontend acceptance criteria (streak banner, specialty selectors, achievement toasts, regression paths) unreachable. Reproduced with clean localStorage.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "useGameState.js (hook return)",
+        "issue": "Hook returns shorthand properties `consumeAchievement, claimStreakReward` (line 531) but NEITHER symbol is declared anywhere in the module. Runtime throws `ReferenceError: consumeAchievement is not defined` the first time <GamePage> calls useGameState(), which unmounts the whole tree.",
+        "selector": "N/A — whole GamePage fails to mount",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "GamePage.jsx (StreakBanner wiring, lines 162-168)",
+        "issue": "JSX references `streakInfo` and `claimStreak` which are never defined in the component (no useState, no useEffect, no destructure from the hook). Even if the previous error is fixed, this would also throw `ReferenceError: streakInfo is not defined` on render.",
+        "selector": "[data-testid=streak-banner]",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Iteration 4 streak system",
+        "issue": "GamePage imports evaluateStreak/markClaimed from ../game/streak but never calls them, never stores snapshot in state, never wires onClaim to markClaimed + game.claimStreakReward. The StreakBanner therefore cannot be shown even after the two ReferenceErrors are fixed.",
+        "affected_selectors": ["[data-testid=streak-banner]", "[data-testid=streak-claim-btn]", "[data-testid^=streak-day-]"]
+      },
+      {
+        "flow": "Iteration 4 achievement toast queue",
+        "issue": "state.achievementQueue is initialised and preserved in tick() (line 665) but there is no logic in the tick/unlockMilestones path that actually APPENDS new entries with {uid, id} when a milestone unlocks. There is also no consumeAchievement({uid}) reducer to pop items. Even if the ReferenceError is patched with a no-op, toasts will never appear.",
+        "affected_selectors": ["[data-testid=achievement-stack]", "[data-testid^=ach-toast-]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Declare `consumeAchievement` and `claimStreakReward` as useCallback reducers inside useGameState.js (or remove them from the return statement). consumeAchievement(uid) should setState({...prev, achievementQueue: prev.achievementQueue.filter(x => x.uid !== uid)}). claimStreakReward(amount) should setState({...prev, gems: prev.gems + amount}).",
+    "CRITICAL: In GamePage.jsx add `const [streakInfo, setStreakInfo] = useState(null)` plus a useEffect that calls evaluateStreak() once needsDifficulty becomes false and setStreakInfo(evalResult) if !alreadyClaimedToday. Define `claimStreak = () => { markClaimed(streakInfo.streak); game.claimStreakReward(streakInfo.reward); setStreakInfo(null); }`.",
+    "CRITICAL: Wire achievement unlocks into state.achievementQueue. Where milestonesUnlocked.push(m.id) happens in tick/useGameState, also append { uid: crypto.randomUUID() or Date.now()+random, id: m.id } to achievementQueue so <AchievementToast> actually renders entries.",
+    "After the above are fixed, regression-run all 17 acceptance criteria from the review request."
+  ],
+  "critical_code_review_comments": [
+    "useGameState.js destructure return contains names that don't exist in the module scope — this is only caught at runtime because ESLint no-undef isn't flagging property shorthand; however, `eslint-plugin-react` + strict mode would catch it. Consider enabling `no-undef` in /app/frontend/.eslintrc.",
+    "No React error boundary exists at the App level. A single missing variable in GamePage blanks the entire site. Add a simple ErrorBoundary component around <GamePage> so at least a readable error is shown and the rest of the app (e.g., header) survives.",
+    "useGameState.js is now 668 lines — still under 700 but growing. Extraction of streak/achievement slices into dedicated reducers will help.",
+    "GamePage.jsx imports evaluateStreak + markClaimed but never calls them — unused import that also signals incomplete implementation. Consider adding a lint rule for unused imports to catch this in CI."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (6/6)", "frontend": "0% — app cannot mount" },
+  "test_credentials": "N/A — no auth",
+  "seed_data_creation": "None. localStorage was cleared before the render attempt.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Re-run the iter 4 Playwright scenarios ONLY after the two ReferenceErrors are fixed AND state.achievementQueue is actually populated on milestone unlocks. Key testids to exercise: streak-banner, streak-day-{1..7}, streak-claim-btn, spec-{junior|senior|lead}-{none|mobile|backend|ai}, hire-{junior|senior|lead}-btn (label must show €{role.cost*costMult} e.g. €260 for junior+mobile, €2250 for senior+ai), achievement-stack, ach-toast-{milestoneId}, stat-gems, mute-btn, lang-toggle-btn. Save key remains startup_master_save_v3; auxiliary 'sm_streak' must be cleared alongside. Mobile 390x844 viewport. Backend regression (event generation it/en) unchanged — 6/6 pytest pass in 15s, safe to skip.",
+  "rca of the issue": "Main agent shipped the iter-4 return surface (consumeAchievement, claimStreakReward) and the StreakBanner JSX wiring, but forgot to implement the underlying reducers in useGameState.js and the streak lifecycle hook in GamePage.jsx. Because JavaScript object shorthand ({ x }) is parsed as `{ x: x }`, using an undefined name doesn't fail until the property is evaluated at runtime → the moment useGameState() is called inside GamePage, the hook throws ReferenceError and React unmounts GamePage, leaving a blank page. Reproduction: (1) open the site on mobile 390x844 with empty localStorage, (2) observe blank background with only the Emergent badge, (3) DevTools console shows `ReferenceError: consumeAchievement is not defined`. Mitigation is listed in action_items; once patched, also add a top-level ErrorBoundary so future regressions degrade gracefully."
+}

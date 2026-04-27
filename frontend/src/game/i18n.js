@@ -135,6 +135,17 @@ export const STRINGS = {
       prestige: "PRESTIGE",
       open_ipo: "Review IPO",
     },
+    streak: {
+      title: "DAILY STREAK",
+      subtitle: "Come back every day to keep the streak alive.",
+      day: "Day",
+      reward: "Reward",
+      claim: "CLAIM",
+    },
+    specialty: {
+      label: "Specialty",
+      bonus: "+{n}% on {cat}",
+    },
   },
   it: {
     app_title: "STARTUP MASTER",
@@ -267,6 +278,17 @@ export const STRINGS = {
       taps_desc: "le tue righe di codice",
       prestige: "PRESTIGE",
       open_ipo: "Apri IPO",
+    },
+    streak: {
+      title: "STREAK GIORNALIERA",
+      subtitle: "Torna ogni giorno per mantenere viva la streak.",
+      day: "Giorno",
+      reward: "Premio",
+      claim: "RISCUOTI",
+    },
+    specialty: {
+      label: "Specialità",
+      bonus: "+{n}% su {cat}",
     },
   },
 };

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OFFICES, STAFF_ROLES, PROJECT_TEMPLATES, MILESTONES, EVENT_TYPES } from "./constants";
 import { GEM_ITEMS } from "./gemShop";
 import { DIFFICULTIES, getDifficulty, MARKETING_ACTIONS, DECISIONS } from "./difficulty";
+import { getSpecialization, specMultiplier } from "./specializations";
 import { sfx } from "./sfx";
 
 const SAVE_KEY = "startup_master_save_v3";
@@ -39,6 +40,7 @@ function makeInitialState(difficultyId = null, carryOver = null) {
     history: [],
     pendingDecision: null,
     nextDecisionAt: Date.now() + 60000,
+    achievementQueue: [], // [{ uid, id }] for animated popups
   };
 }
 
@@ -94,9 +96,15 @@ export function productivityPerSec(state) {
   state.activeEvents.forEach((ev) => {
     if (ev.effect.productivityMult) eventMult *= ev.effect.productivityMult;
   });
+  // specialization match: per-staff multiplier based on active project category
+  const projectCategory = state.activeProject
+    ? (PROJECT_TEMPLATES.find((t) => t.id === state.activeProject.templateId)?.category || null)
+    : null;
   const baseP = state.staff.reduce((sum, s) => {
     const role = STAFF_ROLES.find((r) => r.id === s.roleId);
-    return sum + (role?.productivity || 0);
+    if (!role) return sum;
+    const mult = specMultiplier(s.specialty || "none", projectCategory);
+    return sum + role.productivity * mult;
   }, 0);
   return baseP * speedBonus * boost * eventMult;
 }
@@ -208,17 +216,23 @@ export function useGameState() {
     });
   }, []);
 
-  const hireStaff = useCallback((roleId) => {
+  const hireStaff = useCallback((roleId, specialtyId = "none") => {
     setState((prev) => {
       const role = STAFF_ROLES.find((r) => r.id === roleId);
       if (!role) return prev;
-      if (prev.cash < role.cost) { sfx.error(); return prev; }
+      const spec = getSpecialization(specialtyId);
+      const finalCost = Math.round(role.cost * spec.costMult);
+      if (prev.cash < finalCost) { sfx.error(); return prev; }
       if (prev.staff.length >= prev.desks) { sfx.error(); return prev; }
       const office = currentOffice(prev);
       if (prev.staff.length >= office.capacity) { sfx.error(); return prev; }
       sfx.hire();
-      const newMember = { id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, roleId };
-      const next = { ...prev, cash: prev.cash - role.cost, staff: [...prev.staff, newMember] };
+      const newMember = {
+        id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        roleId,
+        specialty: spec.id,
+      };
+      const next = { ...prev, cash: prev.cash - finalCost, staff: [...prev.staff, newMember] };
       return advanceTutorial(next, 2);
     });
   }, []);
@@ -514,6 +528,7 @@ export function useGameState() {
     setLang, buyDesk, hireStaff, fireStaff, launchProject, upgradeOffice, releaseUpdate,
     dismissEvent, nextTutorialStep, skipTutorial, resetGame, triggerRandomEvent,
     purchaseGem, tapCode, buyMarketing, triggerIpo, resolveDecision,
+    consumeAchievement, claimStreakReward,
     derived: useMemo(
       () => ({
         deskCost: costForDesk(state),
@@ -647,5 +662,6 @@ function tick(prev) {
     activeProject, releasedApps, garageReleases, crunchSeconds,
     milestonesUnlocked, gems, bonuses,
     tutorialStep, bankrupt, nextTaxAt, history,
+    achievementQueue,
   };
 }
