@@ -53,3 +53,14 @@ No auth. See /app/memory/test_credentials.md.
 - Hello World work 30→50 (lets player either click-to-finish or wait for dev)
 - Save version bumped to 2 (old saves invalidated)
 - Tests: 6/6 backend, 100% mobile E2E (iteration_2.json)
+
+## Update (2026-02 / iteration 3) — Progression & replayability patch
+- **4 Difficulty levels** (Easy/Normal/Hard/Hardcore) with unique cash/burn/revenue/work multipliers + hype start + tax% + event frequency. Shown via DifficultyModal at start of every new run.
+- **Fire staff** — each staff chip has an X button; severance = 50% of role hire cost; confirm dialog.
+- **Marketing Quick Actions** — panel (visible after tutorial) with 3 buttons: Ads €80 (+12 hype, 15s cd), PR Blast €400 (+25 hype & +30% rev 30s, 45s cd), Influencer €2500 (hype→100 & +80% rev 60s, 120s cd).
+- **Prestige / IPO** — sell startup at valuation ≥ €10M to unlock permanent productivity multiplier. Keeps: gems/2, prestigeMult, ipoRounds. New run re-picks difficulty but skips tutorial.
+- **Stats tab** with recharts LineChart (revenue/burn over last 60s) + 4 stat cards (total earned, valuation, taps, prestige).
+- **Random Decision modals** every 60-150s after tutorial: salary raise (pay or fire), angel investor (+cash -revenue), emergency bug (hotfix or hype loss), conference (hype boost).
+- **Dev typing animation** — `iso-dev.working` class with 0.45s cycle when active project exists (vs 1.8s idle).
+- Save version bumped to **v3** (keys v1/v2 ignored).
+- Tests: backend 6/6, frontend 14/14 E2E (iteration_3.json). Zero console errors.
