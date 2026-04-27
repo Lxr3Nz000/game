@@ -355,6 +355,10 @@ body::before {
     animation: dev-type 1.8s ease-in-out infinite;
 }
 
+.iso-dev.working {
+    animation-duration: 0.45s;
+}
+
 @keyframes dev-type {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50%      { transform: translateY(-3px) rotate(-2deg); }

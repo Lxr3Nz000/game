@@ -1,22 +1,23 @@
 import React from "react";
 import { t } from "../../game/i18n";
 import { STAFF_ROLES } from "../../game/constants";
+import { X } from "lucide-react";
 
-export default function TabStaff({ state, derived, lang, hireStaff, tutorialStep }) {
+export default function TabStaff({ state, derived, lang, hireStaff, fireStaff, tutorialStep }) {
   const office = derived.office;
   const freeDesks = state.desks - state.staff.length;
 
   return (
     <div className="space-y-3 md:space-y-4" data-testid="tab-staff">
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-        {STAFF_ROLES.map((role, i) => {
+        {STAFF_ROLES.map((role) => {
           const canAfford = state.cash >= role.cost;
           const canSeat = freeDesks > 0 && state.staff.length < office.capacity;
           const disabled = !canAfford || !canSeat;
           const isJunior = role.id === "junior";
           const highlight = tutorialStep === 2 && isJunior ? "tut-highlight" : "";
           return (
-            <div key={role.id} className="sm-panel p-5 flex flex-col gap-3" data-testid={`role-${role.id}`}>
+            <div key={role.id} className="sm-panel p-4 md:p-5 flex flex-col gap-3" data-testid={`role-${role.id}`}>
               <div className="flex items-center gap-2">
                 <div className={`iso-dev ${role.color}`} style={{ position: "relative", top: 0, left: 0 }} />
                 <div className="sm-heading text-base ml-2">{role.name[lang]}</div>
@@ -58,15 +59,29 @@ export default function TabStaff({ state, derived, lang, hireStaff, tutorialStep
           <div className="flex flex-wrap gap-2">
             {state.staff.map((s, i) => {
               const role = STAFF_ROLES.find((r) => r.id === s.roleId);
+              const severance = Math.round((role?.cost || 0) * 0.5);
               return (
                 <div
                   key={s.id}
                   className="sm-hud-chip"
                   data-testid={`staff-chip-${i}`}
-                  style={{ borderColor: "var(--sm-border-strong)" }}
+                  style={{ borderColor: "var(--sm-border-strong)", paddingRight: 6 }}
                 >
                   <div className={`iso-dev ${role?.color || ""}`} style={{ position: "relative", top: 0, left: 0, width: 14, height: 18 }} />
                   <span className="ml-2">{role?.name[lang]}</span>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t(lang, "staff.fire_confirm", { cost: severance }))) {
+                        fireStaff(s.id);
+                      }
+                    }}
+                    data-testid={`fire-staff-btn-${i}`}
+                    className="ml-2 text-[color:var(--sm-neon-red)] hover:text-white"
+                    style={{ padding: 2, display: "inline-flex", alignItems: "center", borderRadius: 4 }}
+                    title={`${t(lang, "staff.fire")} (€${severance})`}
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               );
             })}

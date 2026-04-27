@@ -6,30 +6,38 @@ import TabStaff from "../components/game/TabStaff";
 import TabResearch from "../components/game/TabResearch";
 import TabRealEstate from "../components/game/TabRealEstate";
 import TabMilestones from "../components/game/TabMilestones";
+import TabStats from "../components/game/TabStats";
 import EventNotification from "../components/game/EventNotification";
 import TutorialManager, { TutorialDoneBanner } from "../components/game/TutorialManager";
 import GemShop from "../components/game/GemShop";
+import DifficultyModal from "../components/game/DifficultyModal";
+import MarketingPanel from "../components/game/MarketingPanel";
+import DecisionModal from "../components/game/DecisionModal";
+import PrestigeModal from "../components/game/PrestigeModal";
 import { useGameState } from "../game/useGameState";
+import { DECISIONS } from "../game/difficulty";
 import { t } from "../game/i18n";
 import { sfx } from "../game/sfx";
-import { Building2, Users, FlaskConical, Store, Trophy } from "lucide-react";
+import { Building2, Users, FlaskConical, Store, Trophy, LineChart as LChart } from "lucide-react";
 
 const TABS = [
   { k: "office", icon: Building2 },
   { k: "staff", icon: Users },
   { k: "research", icon: FlaskConical },
   { k: "realestate", icon: Store },
+  { k: "stats", icon: LChart },
   { k: "milestones", icon: Trophy },
 ];
 
 export default function GamePage() {
   const game = useGameState();
-  const { state, derived } = game;
+  const { state, derived, needsDifficulty } = game;
   const lang = state.lang;
 
   const [tab, setTab] = useState("office");
   const [showDone, setShowDone] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [prestigeOpen, setPrestigeOpen] = useState(false);
   const [muted, setMuted] = useState(() => sfx.isMuted());
 
   useEffect(() => {
@@ -39,7 +47,6 @@ export default function GamePage() {
     }
   }, [state.tutorialStep, state.releasedApps.length]);
 
-  // Auto-focus the right tab during the tutorial
   useEffect(() => {
     if (state.tutorialStep === 1) setTab("office");
     else if (state.tutorialStep === 2) setTab("staff");
@@ -52,10 +59,9 @@ export default function GamePage() {
     setMuted(next);
   };
 
-  const handleShopOpen = () => {
-    sfx.click();
-    setShopOpen(true);
-  };
+  const pendingDecision = state.pendingDecision
+    ? DECISIONS.find((d) => d.id === state.pendingDecision)
+    : null;
 
   return (
     <div
@@ -77,7 +83,7 @@ export default function GamePage() {
               game.resetGame();
             }
           }}
-          onOpenShop={handleShopOpen}
+          onOpenShop={() => { sfx.click(); setShopOpen(true); }}
           muted={muted}
           onToggleMute={toggleMute}
         />
@@ -89,6 +95,10 @@ export default function GamePage() {
           onTap={game.tapCode}
           tutorialStep={state.tutorialStep}
         />
+
+        {state.tutorialStep >= 5 && (
+          <MarketingPanel state={state} lang={lang} onRun={game.buyMarketing} />
+        )}
 
         <div
           className="sm-panel p-1 flex gap-1 overflow-x-auto no-scrollbar"
@@ -115,7 +125,8 @@ export default function GamePage() {
           )}
           {tab === "staff" && (
             <TabStaff state={state} derived={derived} lang={lang}
-              hireStaff={game.hireStaff} tutorialStep={state.tutorialStep} />
+              hireStaff={game.hireStaff} fireStaff={game.fireStaff}
+              tutorialStep={state.tutorialStep} />
           )}
           {tab === "research" && (
             <TabResearch state={state} derived={derived} lang={lang}
@@ -125,25 +136,37 @@ export default function GamePage() {
           {tab === "realestate" && (
             <TabRealEstate state={state} lang={lang} upgradeOffice={game.upgradeOffice} />
           )}
+          {tab === "stats" && (
+            <TabStats state={state} derived={derived} lang={lang}
+              onOpenPrestige={() => setPrestigeOpen(true)} />
+          )}
           {tab === "milestones" && <TabMilestones state={state} lang={lang} />}
         </div>
 
         <div className="text-center text-[10px] text-[color:var(--sm-text-dim)] py-4 sm-display px-2">
-          &gt; valuation: €{derived.valuation.toLocaleString()} · session {Math.floor((Date.now() - state.startedAt) / 60000)}m · taps {state.totalTaps || 0}
+          &gt; {derived.difficulty.name[lang].toUpperCase()} MODE · val €{derived.valuation.toLocaleString()} · prestige +{Math.round((state.prestigeMult || 0) * 100)}% · taps {state.totalTaps || 0}
         </div>
       </div>
 
       <EventNotification events={state.activeEvents} onDismiss={game.dismissEvent} />
 
-      <GemShop
-        open={shopOpen}
-        onClose={() => setShopOpen(false)}
-        state={state}
-        lang={lang}
-        onPurchase={(id) => {
-          game.purchaseGem(id);
-        }}
-      />
+      <GemShop open={shopOpen} onClose={() => setShopOpen(false)}
+        state={state} lang={lang} onPurchase={game.purchaseGem} />
+
+      <PrestigeModal open={prestigeOpen} onClose={() => setPrestigeOpen(false)}
+        state={state} derived={derived} lang={lang}
+        onIpo={() => { game.triggerIpo(); setPrestigeOpen(false); }} />
+
+      <DifficultyModal open={needsDifficulty} lang={lang}
+        onSelect={(id) => { sfx.click(); game.chooseDifficulty(id); }} />
+
+      {pendingDecision && (
+        <DecisionModal
+          decision={pendingDecision}
+          lang={lang}
+          onChoose={game.resolveDecision}
+        />
+      )}
 
       {showDone && (
         <TutorialDoneBanner lang={lang} onClose={() => setShowDone(false)} />
@@ -169,7 +192,7 @@ export default function GamePage() {
               {state.gems >= 30 && (
                 <button
                   className="sm-btn w-full min-h-[48px]"
-                  onClick={() => { setShopOpen(true); }}
+                  onClick={() => setShopOpen(true)}
                   data-testid="bankrupt-shop-btn"
                   style={{ borderColor: "var(--sm-neon-purple)", color: "var(--sm-neon-purple)" }}
                 >

@@ -134,7 +134,7 @@ export default function IsometricOffice({ state, derived, lang, onTap, tutorialS
                   >
                     {dev && (
                       <div
-                        className={`iso-dev ${devColor}`}
+                        className={`iso-dev ${devColor} ${activeProject ? "working" : ""}`}
                         style={{
                           width: devW,
                           height: devH,
