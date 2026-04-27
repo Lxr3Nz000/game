@@ -43,3 +43,13 @@ Advanced tycoon game "Startup Master - Global Expansion". Dashboard with tabs (O
 
 ## Test Credentials
 No auth. See /app/memory/test_credentials.md.
+
+## Update (2026-02 / iteration 2) — Mobile engagement patch
+- Tap-to-code clicker on isometric office (+1 wp per tap, €1 per 4 taps when idle)
+- New sticky top tutorial stepper (5 steps, no blocking modal, counter for taps left)
+- Gem Shop modal (7 items, revive gated by bankrupt state) — accessible via HUD Sparkles button AND clickable gems chip
+- SFX engine via Web Audio API (click/buy/hire/launch/release/milestone/bankrupt/gem), mute persisted in localStorage
+- Difficulty tuning: start cash 1000→800, hype 50→35, obsolescence 0.5%→0.7%/s, events 35s/55%→25s/65%, desk maintenance 0.3→0.5€/s, quarterly taxes (8% of cash every 90s after tutorial)
+- Hello World work 30→50 (lets player either click-to-finish or wait for dev)
+- Save version bumped to 2 (old saves invalidated)
+- Tests: 6/6 backend, 100% mobile E2E (iteration_2.json)
