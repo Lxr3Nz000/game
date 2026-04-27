@@ -241,8 +241,10 @@ export function useGameState() {
     setState((prev) => {
       const idx = prev.staff.findIndex((s) => s.id === staffId);
       if (idx < 0) return prev;
-      const role = STAFF_ROLES.find((r) => r.id === prev.staff[idx].roleId);
-      const severance = Math.round((role?.cost || 0) * 0.5);
+      const member = prev.staff[idx];
+      const role = STAFF_ROLES.find((r) => r.id === member.roleId);
+      const spec = getSpecialization(member.specialty || "none");
+      const severance = Math.round((role?.cost || 0) * spec.costMult * 0.5);
       if (prev.cash < severance) { sfx.error(); return prev; }
       sfx.click();
       return {

@@ -64,3 +64,15 @@ No auth. See /app/memory/test_credentials.md.
 - **Dev typing animation** — `iso-dev.working` class with 0.45s cycle when active project exists (vs 1.8s idle).
 - Save version bumped to **v3** (keys v1/v2 ignored).
 - Tests: backend 6/6, frontend 14/14 E2E (iteration_3.json). Zero console errors.
+
+## Update (2026-02 / iteration 4) — Specializations, popups, streak, richer audio
+- **Dev Specializations** (Generalist/Mobile/Backend/AI): chosen at hire time. Mobile +60% productivity on mobile-category projects (cost ×1.3); Backend +60% on saas/os (cost ×1.3); AI +80% on ai (cost ×1.5). Specialty selectors (4 small icon buttons) per role card; staff chip displays specialty icon. Severance scales with specialty cost mult.
+- **Animated achievement popups**: queue at top-center, animated entry with spinning conic gradient + reverb chime, auto-dismiss 4s, click to dismiss.
+- **Daily streak**: separate localStorage key `sm_streak`. Once per UTC day banner with 7-day grid, escalating gem rewards (5/8/12/18/25/35/50/70/100). Resets to day 1 if missed.
+- **Richer SFX**: layered oscillators with detune chorus, procedural reverb (convolver), bandpass-filtered noise textures. New `streak()` chime.
+- Save key unchanged at v3 (forward-compatible: new fields default-init).
+- Tests: backend 6/6 stable, frontend 14/17 (specialty bonus formula verified by code review; productivity timing not deterministic in single test session).
+
+### Notes
+- Push notifications skipped: PWA service workers + permissions are heavyweight for the gameplay value. In-app daily streak banner serves the same retention goal.
+- 2 critical ReferenceErrors caught + fixed during testing (consumeAchievement, achievementQueue in tick) — testing agent autopatched the latter, main agent the former. Final fireStaff severance bug also fixed post-test.
