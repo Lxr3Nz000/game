@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 4 retest after fixes. Two of the three iter-4 critical bugs are now resolved (consumeAchievement & claimStreakReward reducers; streakInfo state in GamePage). However a THIRD ReferenceError was found and fixed by me: tick() referenced an undefined `achievementQueue` variable on line 678 of useGameState.js. After this fix the app mounts cleanly on mobile 390x844 and 14 of 17 acceptance criteria pass. Remaining: (a) fireStaff severance does NOT honour specialty cost multiplier (real business-logic bug), (b) couldn't validate productivity bonus for matching project category in a single sitting (requires longer ai/launch flow), (c) no top-level ErrorBoundary still — repeat regression risk. Backend pytest 6/6 green.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "useGameState.js fireStaff (line 240-254)",
+        "issue": "Severance is computed as `role.cost * 0.5` and ignores the staff member's `specialty.costMult`. Per spec, firing a mobile junior must charge round(200 * 1.3 * 0.5) = €130, but current code charges €100. Same defect for backend (€100 vs €130) and ai (€100 vs €150) specialties.",
+        "selector": "[data-testid^=fire-staff-btn-]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Achievement queue persistence in tick()",
+        "issue": "Was throwing `ReferenceError: achievementQueue is not defined` on every tick (1s interval), unmounting <GamePage>. Fixed in this iteration by declaring `const achievementQueue = [...(prev.achievementQueue || [])]` and pushing { uid, id } entries inside the MILESTONES.forEach unlock branch.",
+        "affected_selectors": ["[data-testid=achievement-stack]", "[data-testid^=ach-toast-]"]
+      },
+      {
+        "flow": "Productivity bonus verification (specialty × matching project)",
+        "issue": "Could not deterministically validate `1.6 wp/s` for 1 mobile junior + 1 active mobile project within retest window — requires launching a mobile-category project then sampling activeProject.workDone over 1s. specMultiplier() logic itself looks correct per code review. Recommend main agent add a small unit test or a debug overlay.",
+        "affected_selectors": ["[data-testid^=launch-project-]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Global",
+        "issues": [
+          "Still no React ErrorBoundary at App/GamePage level. Any future ReferenceError in the hook will again blank the entire site (this is the third iteration in a row that this risk has materialised)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix fireStaff severance — replace line 245 with `const member = prev.staff[idx]; const spec = getSpecialization(member.specialty || 'none'); const severance = Math.round((role?.cost || 0) * spec.costMult * 0.5);` (and import getSpecialization at the top of useGameState.js if not already in scope — it is imported via specMultiplier import path).",
+    "MEDIUM: Add a top-level React ErrorBoundary around <GamePage> so a single hook crash shows a readable message and Lang/Mute/Reset still work.",
+    "LOW: Webpack still warns about useEffect missing dep `triggerRandomEvent` (pre-existing, non-blocking) — wrap triggerRandomEvent in useCallback (already useCallback) and add it to the tick useEffect dep array, or eslint-disable-next-line.",
+    "LOW: Add a tiny unit test in /app/frontend/src/__tests__ for specMultiplier(mobile, 'mobile')===1.6 to lock in the bonus contract."
+  ],
+  "critical_code_review_comments": [
+    "useGameState.js is now 686 lines — past 700 risk threshold. Strongly suggest extracting tick(), milestone unlock logic, streak/achievement reducers into separate modules.",
+    "tick() silently used an undefined `achievementQueue` for an entire iteration cycle because the unit isn't covered by tests and `no-undef` is disabled by default in CRA's eslint config. Enabling no-undef would have caught this in CI.",
+    "fireStaff regression caused by hireStaff using `role.cost * spec.costMult` while fireStaff still uses `role.cost` only — classic copy-paste asymmetry. Extract a `effectiveHireCost(role, specialtyId)` helper and reuse on both sides.",
+    "MILESTONES.forEach inside tick() now mutates achievementQueue; consider returning a new array for clarity and to keep tick() pure-ish.",
+    "GamePage.jsx claimStreak handler doesn't guard against double-claim if the user clicks twice before setStreakInfo(null) settles. setStreakInfo(null) before the dispatch would be safer (or disable button on click)."
+  ],
+  "updated_files": [
+    "/app/frontend/src/game/useGameState.js (added `const achievementQueue = [...(prev.achievementQueue || [])]` declaration + pushed {uid, id} into achievementQueue inside MILESTONES.forEach unlock branch — fixes the third iter-4 ReferenceError)"
+  ],
+  "success_rate": { "backend": "100% (6/6 pytest)", "frontend": "~82% (14/17 spec criteria validated; 1 confirmed bug, 2 not deterministically validated)" },
+  "test_credentials": "N/A — no auth",
+  "seed_data_creation": "localStorage.clear() before each scenario; key 'sm_streak' is set to {lastClaim:'2026-04-27', streak:1} after streak claim; key 'startup_master_save_v3' contains main game state.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent applies the fireStaff fix, regression-run: (1) hire mobile junior at €260 → fire → cash should drop by €130 (not €100); (2) hire ai junior at €300 → fire → cash should drop by €150; (3) confirm staff array shrinks by 1. Also validate productivity bonus by launching a mobile-category project (templateId starts with 'mob_' likely) with 1 mobile junior, sampling activeProject.workDone after exactly 1s — should advance by ~1.6. Use page.evaluate or dispatch_event for spec selector clicks because raw .click() at viewport edges (y≈840 on mobile 390x844) sometimes misses; the AI button is the lowest in the staff card. Backend regression skip — 6/6 stable. Save keys: 'startup_master_save_v3' + 'sm_streak'. Mobile viewport 390x844.",
+  "rca of the issue": "Iter 4 shipped with a third undeclared symbol — `achievementQueue` — used in the tick() reducer's return object on line 678. Because tick runs in setInterval (not on initial mount), the page was rendering for ~1 second THEN crashing on the first tick, which still produced the same blank screen described in iter_4.json (the ErrorBoundary fallback wasn't visible because there is no ErrorBoundary). Fix: declare `const achievementQueue = [...(prev.achievementQueue || [])]` next to the other unlock-cycle locals, and push `{ uid, id }` into it whenever a milestone unlocks. After this single-line addition the app mounts and all iter-4 features become testable. Reproduction (now resolved): 1) clear localStorage, 2) load page on mobile 390x844, 3) pick difficulty, 4) wait 1.5 s for first tick → previously: blank screen + DevTools ReferenceError; now: streak banner appears, ach toasts fire on milestone unlock."
+}

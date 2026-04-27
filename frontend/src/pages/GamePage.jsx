@@ -42,6 +42,23 @@ export default function GamePage() {
   const [shopOpen, setShopOpen] = useState(false);
   const [prestigeOpen, setPrestigeOpen] = useState(false);
   const [muted, setMuted] = useState(() => sfx.isMuted());
+  const [streakInfo, setStreakInfo] = useState(null);
+
+  // Daily streak — show once per UTC day on first load (after difficulty is set)
+  useEffect(() => {
+    if (needsDifficulty) return;
+    const info = evaluateStreak();
+    if (!info.alreadyClaimedToday) {
+      setStreakInfo(info);
+    }
+  }, [needsDifficulty]);
+
+  const claimStreak = () => {
+    if (!streakInfo) return;
+    game.claimStreakReward(streakInfo.reward);
+    markClaimed(streakInfo.streak);
+    setStreakInfo(null);
+  };
 
   useEffect(() => {
     if (state.tutorialStep === 5 && state.releasedApps.length >= 1 && !localStorage.getItem("tut_done_shown")) {

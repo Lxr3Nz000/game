@@ -409,6 +409,19 @@ export function useGameState() {
     });
   }, []);
 
+  const consumeAchievement = useCallback((uid) => {
+    setState((prev) => ({
+      ...prev,
+      achievementQueue: (prev.achievementQueue || []).filter((a) => a.uid !== uid),
+    }));
+  }, []);
+
+  const claimStreakReward = useCallback((amount) => {
+    setState((prev) => ({ ...prev, gems: prev.gems + amount }));
+    try { sfx.streak(); } catch {}
+  }, []);
+
+
   const triggerRandomEvent = useCallback(async () => {
     const eventDef = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
     const lang = stateRef.current.lang;
@@ -637,6 +650,7 @@ function tick(prev) {
   const milestonesUnlocked = [...prev.milestonesUnlocked];
   const bonuses = { ...prev.bonuses };
   let gems = prev.gems;
+  const achievementQueue = [...(prev.achievementQueue || [])];
   const snapshot = {
     ...prev, cash, activeEvents: finalActive, releasedApps,
     garageReleases, crunchSeconds, totalEarned,
@@ -648,6 +662,10 @@ function tick(prev) {
       if (m.reward.gems) gems += m.reward.gems;
       if (m.reward.discount) bonuses.deskDiscount = Math.max(bonuses.deskDiscount || 0, m.reward.discount);
       if (m.reward.productivity) bonuses.productivityBoost = (bonuses.productivityBoost || 0) + m.reward.productivity;
+      achievementQueue.push({
+        uid: `ach_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: m.id,
+      });
       try { sfx.milestone(); } catch {}
     }
   });
