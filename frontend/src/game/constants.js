@@ -93,7 +93,7 @@ export const PROJECT_TEMPLATES = [
     id: "hello",
     name: { en: "Hello World", it: "Hello World" },
     category: "basic",
-    work: 30, // work-points needed
+    work: 50, // work-points needed
     baseRevenue: 2, // /s
     cost: 0,
     minOffice: 0,

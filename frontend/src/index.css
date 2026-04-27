@@ -185,6 +185,63 @@ body::before {
     }
 }
 
+/* Sticky top tutorial stepper */
+.sm-tutorial-sticky {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 65;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+.sm-tutorial-sticky > * {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 760px;
+}
+
+/* Tap-to-code visual hint */
+.iso-stage.tap-highlight {
+    outline: 2px solid rgba(0, 255, 157, 0.55);
+    outline-offset: 2px;
+    animation: tap-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tap-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0.25), inset 0 0 24px rgba(0, 255, 157, 0.06); }
+    50%      { box-shadow: 0 0 0 6px rgba(0, 255, 157, 0.08), inset 0 0 32px rgba(0, 255, 157, 0.15); }
+}
+
+/* Floating work-point +1 */
+.sm-float {
+    position: absolute;
+    font-family: 'VT323', 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    pointer-events: none;
+    animation: float-up 0.8s ease-out forwards;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 0 8px currentColor;
+    z-index: 5;
+}
+@keyframes float-up {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+    30%  { opacity: 1; transform: translate(-50%, -75%) scale(1.05); }
+    100% { opacity: 0; transform: translate(-50%, -130%) scale(1); }
+}
+
+/* Clickable stat card */
+.sm-stat-btn {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+.sm-stat-btn:hover {
+    border-color: var(--sm-neon-purple) !important;
+    box-shadow: 0 0 14px rgba(157, 107, 255, 0.25);
+}
+.sm-stat-btn:active { transform: scale(0.98); }
+
 /* Hide horizontal scrollbar but keep scrollable */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

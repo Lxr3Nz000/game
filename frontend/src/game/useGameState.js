@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OFFICES, STAFF_ROLES, PROJECT_TEMPLATES, MILESTONES, EVENT_TYPES } from "./constants";
+import { GEM_ITEMS } from "./gemShop";
+import { sfx } from "./sfx";
 
 const SAVE_KEY = "startup_master_save_v1";
 
 function makeInitialState() {
   return {
-    version: 1,
+    version: 2,
     lang: "en",
-    cash: 1000,
+    cash: 800,
     gems: 0,
-    hype: 50, // 0..100
+    hype: 35, // 0..100 — start low for harder pacing
     officeTier: 0,
     desks: 0,
-    staff: [], // [{id, roleId, progressTarget, work}]
-    activeProject: null, // {templateId, workDone, workTarget, cost}
-    releasedApps: [], // {id, templateId, age(seconds), level}
+    staff: [],
+    activeProject: null,
+    releasedApps: [],
     milestonesUnlocked: [],
-    activeEvents: [], // {id, eventType, expiresAt, effect}
+    activeEvents: [],
     bonuses: { productivityBoost: 0, deskDiscount: 0 },
     garageReleases: 0,
     crunchSeconds: 0,
     totalEarned: 0,
+    totalTaps: 0,
+    nextTaxAt: Date.now() + 90000, // first tax 90s in
     startedAt: Date.now(),
-    tutorialStep: 0, // 0 welcome, 1 buy desk, 2 hire, 3 launch, 4 collect, 5 done
+    tutorialStep: 0,
     bankrupt: false,
   };
 }
@@ -32,7 +36,7 @@ function loadSave() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw);
-    if (!s || s.version !== 1) return null;
+    if (!s || s.version !== 2) return null;
     return s;
   } catch {
     return null;
@@ -59,7 +63,7 @@ export function currentOffice(state) {
 
 export function maintenanceCost(state) {
   const o = currentOffice(state);
-  const deskMaint = state.desks * 0.3;
+  const deskMaint = state.desks * 0.5;
   return o.maintenance + deskMaint;
 }
 
@@ -94,8 +98,8 @@ export function revenuePerSec(state) {
   return state.releasedApps.reduce((sum, app) => {
     const tpl = PROJECT_TEMPLATES.find((t) => t.id === app.templateId);
     if (!tpl) return sum;
-    // obsolescence: lose 0.5% per second, floor 10%
-    const obsFactor = Math.max(0.1, 1 - app.age * 0.005);
+    // obsolescence: lose 0.7% per second, floor 10%
+    const obsFactor = Math.max(0.1, 1 - app.age * 0.007);
     const levelMult = 1 + (app.level - 1) * 0.35;
     return sum + tpl.baseRevenue * obsFactor * levelMult * hypeMult * eventMult;
   }, 0);
@@ -140,15 +144,15 @@ export function useGameState() {
     return () => clearInterval(id);
   }, []);
 
-  // Random events: every 35s random chance
+  // Random events: every 25s random chance
   useEffect(() => {
     const id = setInterval(() => {
       const s = stateRef.current;
-      if (s.bankrupt || s.tutorialStep < 4) return;
-      if (Math.random() < 0.55) {
+      if (s.bankrupt || s.tutorialStep < 5) return;
+      if (Math.random() < 0.65) {
         triggerRandomEvent();
       }
-    }, 35000);
+    }, 25000);
     return () => clearInterval(id);
   }, []);
 
@@ -156,8 +160,9 @@ export function useGameState() {
     setState((prev) => {
       const cost = costForDesk(prev);
       const office = currentOffice(prev);
-      if (prev.cash < cost) return prev;
-      if (prev.desks >= office.capacity) return prev;
+      if (prev.cash < cost) { sfx.error(); return prev; }
+      if (prev.desks >= office.capacity) { sfx.error(); return prev; }
+      sfx.buy();
       const next = { ...prev, cash: prev.cash - cost, desks: prev.desks + 1 };
       return advanceTutorial(next, 1);
     });
@@ -167,10 +172,11 @@ export function useGameState() {
     setState((prev) => {
       const role = STAFF_ROLES.find((r) => r.id === roleId);
       if (!role) return prev;
-      if (prev.cash < role.cost) return prev;
-      if (prev.staff.length >= prev.desks) return prev;
+      if (prev.cash < role.cost) { sfx.error(); return prev; }
+      if (prev.staff.length >= prev.desks) { sfx.error(); return prev; }
       const office = currentOffice(prev);
-      if (prev.staff.length >= office.capacity) return prev;
+      if (prev.staff.length >= office.capacity) { sfx.error(); return prev; }
+      sfx.hire();
       const newMember = { id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, roleId };
       const next = { ...prev, cash: prev.cash - role.cost, staff: [...prev.staff, newMember] };
       return advanceTutorial(next, 2);
@@ -179,11 +185,12 @@ export function useGameState() {
 
   const launchProject = useCallback((templateId) => {
     setState((prev) => {
-      if (prev.activeProject) return prev;
+      if (prev.activeProject) { sfx.error(); return prev; }
       const tpl = PROJECT_TEMPLATES.find((t) => t.id === templateId);
       if (!tpl) return prev;
-      if (prev.cash < tpl.cost) return prev;
-      if (prev.officeTier < tpl.minOffice) return prev;
+      if (prev.cash < tpl.cost) { sfx.error(); return prev; }
+      if (prev.officeTier < tpl.minOffice) { sfx.error(); return prev; }
+      sfx.launch();
       const next = {
         ...prev,
         cash: prev.cash - tpl.cost,
@@ -198,7 +205,8 @@ export function useGameState() {
       if (tier <= prev.officeTier) return prev;
       const office = OFFICES[tier];
       if (!office) return prev;
-      if (prev.cash < office.cost) return prev;
+      if (prev.cash < office.cost) { sfx.error(); return prev; }
+      sfx.release();
       return { ...prev, cash: prev.cash - office.cost, officeTier: tier };
     });
   }, []);
@@ -210,7 +218,8 @@ export function useGameState() {
       const tpl = PROJECT_TEMPLATES.find((t) => t.id === app.templateId);
       if (!tpl) return prev;
       const updateCost = Math.round(tpl.cost * 0.4 * Math.pow(1.6, app.level - 1)) + 50;
-      if (prev.cash < updateCost) return prev;
+      if (prev.cash < updateCost) { sfx.error(); return prev; }
+      sfx.release();
       return {
         ...prev,
         cash: prev.cash - updateCost,
@@ -218,6 +227,84 @@ export function useGameState() {
           a.id === appId ? { ...a, age: 0, level: a.level + 1 } : a
         ),
       };
+    });
+  }, []);
+
+  const purchaseGem = useCallback((itemId) => {
+    setState((prev) => {
+      const item = GEM_ITEMS.find((i) => i.id === itemId);
+      if (!item) return prev;
+      if (prev.gems < item.cost) { sfx.error(); return prev; }
+      if (item.onlyWhen && !item.onlyWhen(prev)) { sfx.error(); return prev; }
+      sfx.gem();
+      let next = { ...prev, gems: prev.gems - item.cost };
+      if (item.apply) next = item.apply(next);
+      if (item.type === "event" && item.event) {
+        const now = Date.now();
+        next = {
+          ...next,
+          activeEvents: [
+            ...next.activeEvents,
+            {
+              id: `gem_${now}_${Math.random().toString(36).slice(2, 6)}`,
+              eventType: item.event.eventType,
+              title: item.event.title,
+              message: item.event.message,
+              positive: item.event.positive,
+              expiresAt: now + item.event.durationMs,
+              effect: item.event.effect,
+            },
+          ],
+        };
+      }
+      return next;
+    });
+  }, []);
+
+  // tap-to-code: contribute work points to active project, or earn a tiny cash trickle when idle
+  const tapCode = useCallback(() => {
+    setState((prev) => {
+      if (prev.bankrupt) return prev;
+      sfx.click();
+      const totalTaps = (prev.totalTaps || 0) + 1;
+      // tutorial: first tap unlocks step 1
+      let tutorialStep = prev.tutorialStep;
+      if (tutorialStep === 0 && totalTaps >= 5) tutorialStep = 1;
+
+      if (prev.activeProject) {
+        const newWork = prev.activeProject.workDone + 1;
+        if (newWork >= prev.activeProject.workTarget) {
+          // complete project right now
+          const newApp = {
+            id: `app_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            templateId: prev.activeProject.templateId,
+            age: 0,
+            level: 1,
+          };
+          sfx.release();
+          let garageReleases = prev.garageReleases + (prev.officeTier === 0 ? 1 : 0);
+          let nextTutStep = tutorialStep;
+          if (tutorialStep === 3) nextTutStep = 5;
+          else if (tutorialStep === 4) nextTutStep = 5;
+          return {
+            ...prev,
+            totalTaps,
+            tutorialStep: nextTutStep,
+            activeProject: null,
+            releasedApps: [...prev.releasedApps, newApp],
+            garageReleases,
+          };
+        }
+        return {
+          ...prev,
+          totalTaps,
+          tutorialStep,
+          activeProject: { ...prev.activeProject, workDone: newWork },
+        };
+      }
+      // idle tap: small cash drip (max 1€ per 4 taps)
+      const cashGain = totalTaps % 4 === 0 ? 1 : 0;
+      return { ...prev, totalTaps, tutorialStep, cash: prev.cash + cashGain };
     });
   }, []);
 
@@ -317,6 +404,8 @@ export function useGameState() {
     skipTutorial,
     resetGame,
     triggerRandomEvent,
+    purchaseGem,
+    tapCode,
     derived: useMemo(
       () => ({
         deskCost: costForDesk(state),
@@ -354,16 +443,27 @@ function tick(prev) {
   let cash = prev.cash + rev - burn;
   const totalEarned = prev.totalEarned + Math.max(0, rev);
 
+  // periodic tax: 8% of cash every 90s, but only after tutorial finished
+  let nextTaxAt = prev.nextTaxAt || (now + 90000);
+  let taxedThisTick = false;
+  if (prev.tutorialStep >= 5 && now >= nextTaxAt) {
+    cash = cash * 0.92;
+    nextTaxAt = now + 90000;
+    taxedThisTick = true;
+  }
+
   let bankrupt = false;
   if (cash < 0) {
     cash = 0;
     bankrupt = true;
+    try { sfx.bankrupt(); } catch {}
   }
 
   // project progress
   let activeProject = prev.activeProject;
   let releasedApps = [...prev.releasedApps];
   let garageReleases = prev.garageReleases;
+  let justReleased = false;
 
   if (activeProject) {
     const nextWork = activeProject.workDone + productivityPerSec({ ...prev, activeEvents });
@@ -376,10 +476,12 @@ function tick(prev) {
       });
       if (prev.officeTier === 0) garageReleases += 1;
       activeProject = null;
+      justReleased = true;
     } else {
       activeProject = { ...activeProject, workDone: nextWork };
     }
   }
+  if (justReleased) { try { sfx.release(); } catch {} }
 
   // age apps
   releasedApps = releasedApps.map((a) => ({ ...a, age: a.age + 1 }));
@@ -390,12 +492,31 @@ function tick(prev) {
       ? prev.crunchSeconds + 1
       : prev.crunchSeconds;
 
-  // tutorial: auto-advance when first app collected
+  // tutorial auto-advance for launch→collect flow (steps 3 → 4 → 5)
   let tutorialStep = prev.tutorialStep;
-  if (tutorialStep === 4 && releasedApps.length >= 1 && prev.releasedApps.length === 0) {
+  if (tutorialStep === 3 && activeProject === null && releasedApps.length > prev.releasedApps.length) {
+    tutorialStep = 4;
+  }
+  if (tutorialStep === 4 && releasedApps.length >= 1) {
     tutorialStep = 5;
-  } else if (tutorialStep === 3 && activeProject === null && releasedApps.length > prev.releasedApps.length) {
-    tutorialStep = 4; // project just completed -> go to collect phase
+  }
+
+  // inject tax notification (one-shot popup)
+  let finalActive = activeEvents;
+  if (taxedThisTick) {
+    finalActive = [
+      ...activeEvents,
+      {
+        id: `tax_${now}`,
+        eventType: "tax_audit",
+        title: prev.lang === "it" ? "TASSE TRIMESTRALI" : "QUARTERLY TAXES",
+        message: prev.lang === "it" ? "Il fisco ha prelevato l'8% della tua cassa." : "The taxman grabbed 8% of your cash.",
+        positive: false,
+        expiresAt: now + 6000,
+        effect: {},
+      },
+    ];
+    try { sfx.event_bad(); } catch {}
   }
 
   // milestones check
@@ -405,12 +526,12 @@ function tick(prev) {
   const snapshot = {
     ...prev,
     cash,
-    activeEvents,
+    activeEvents: finalActive,
     releasedApps,
     garageReleases,
     crunchSeconds,
     totalEarned,
-    valuation: valuation({ ...prev, cash, releasedApps, activeEvents }),
+    valuation: valuation({ ...prev, cash, releasedApps, activeEvents: finalActive }),
   };
   MILESTONES.forEach((m) => {
     if (!milestonesUnlocked.includes(m.id) && m.check(snapshot)) {
@@ -418,6 +539,7 @@ function tick(prev) {
       if (m.reward.gems) gems += m.reward.gems;
       if (m.reward.discount) bonuses.deskDiscount = Math.max(bonuses.deskDiscount || 0, m.reward.discount);
       if (m.reward.productivity) bonuses.productivityBoost = (bonuses.productivityBoost || 0) + m.reward.productivity;
+      try { sfx.milestone(); } catch {}
     }
   });
 
@@ -425,7 +547,7 @@ function tick(prev) {
     ...prev,
     cash,
     totalEarned,
-    activeEvents,
+    activeEvents: finalActive,
     activeProject,
     releasedApps,
     garageReleases,
@@ -435,5 +557,6 @@ function tick(prev) {
     bonuses,
     tutorialStep,
     bankrupt,
+    nextTaxAt,
   };
 }

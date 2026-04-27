@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PROJECT_TEMPLATES } from "../../game/constants";
 
-// A simple isometric stage with desks, devs, and a project HUD
-export default function IsometricOffice({ state, derived, lang }) {
+// Isometric stage + tap-to-code overlay. Click anywhere on the stage to contribute a work point.
+export default function IsometricOffice({ state, derived, lang, onTap, tutorialStep }) {
   const { desks, staff, officeTier, activeProject } = state;
 
-  // Build a grid layout: up to 25 slots (5x5) visible, based on capacity
   const capacity = Math.min(25, derived.office.capacity);
   const cols = Math.ceil(Math.sqrt(capacity));
   const rows = Math.ceil(capacity / cols);
@@ -20,14 +19,12 @@ export default function IsometricOffice({ state, derived, lang }) {
     return arr;
   }, [rows, cols]);
 
-  // Responsive tile size: smaller on phones
   const stageRef = useRef(null);
   const [tileSize, setTileSize] = useState(72);
   useEffect(() => {
     function recompute() {
       if (!stageRef.current) return;
       const w = stageRef.current.clientWidth;
-      // target: grid width fits ~60% of stage width in post-rotation space
       const base = w < 480 ? 44 : w < 768 ? 56 : 72;
       setTileSize(base);
     }
@@ -46,6 +43,28 @@ export default function IsometricOffice({ state, derived, lang }) {
   const activeTpl =
     activeProject && PROJECT_TEMPLATES.find((t) => t.id === activeProject.templateId);
 
+  // Floating +1 animations
+  const [floats, setFloats] = useState([]);
+  const nextId = useRef(0);
+  const handleStageClick = useCallback(
+    (e) => {
+      if (!stageRef.current) return;
+      const rect = stageRef.current.getBoundingClientRect();
+      const x = (e.clientX || (e.touches && e.touches[0]?.clientX) || rect.left + rect.width / 2) - rect.left;
+      const y = (e.clientY || (e.touches && e.touches[0]?.clientY) || rect.top + rect.height / 2) - rect.top;
+      const id = ++nextId.current;
+      const isCoding = !!activeProject;
+      setFloats((prev) => [...prev.slice(-6), { id, x, y, coding: isCoding }]);
+      setTimeout(() => {
+        setFloats((prev) => prev.filter((f) => f.id !== id));
+      }, 800);
+      onTap && onTap();
+    },
+    [onTap, activeProject]
+  );
+
+  const tapHighlight = tutorialStep === 0 || tutorialStep === 4;
+
   return (
     <div className="sm-panel p-2 md:p-3" data-testid="iso-office">
       <div className="flex items-center justify-between mb-2 px-1 gap-2">
@@ -59,10 +78,14 @@ export default function IsometricOffice({ state, derived, lang }) {
 
       <div
         ref={stageRef}
-        className="iso-stage"
-        style={{ aspectRatio: "16/10", minHeight: 200 }}
+        className={`iso-stage ${tapHighlight ? "tap-highlight" : ""}`}
+        onClick={handleStageClick}
+        onTouchStart={(e) => { e.preventDefault(); handleStageClick(e); }}
+        role="button"
+        aria-label="Tap to code"
+        data-testid="iso-tap-zone"
+        style={{ aspectRatio: "16/10", minHeight: 200, cursor: "pointer", userSelect: "none" }}
       >
-        {/* horizon glow */}
         <div
           style={{
             position: "absolute",
@@ -72,10 +95,11 @@ export default function IsometricOffice({ state, derived, lang }) {
             height: 2,
             background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.5), transparent)",
             filter: "blur(1px)",
+            pointerEvents: "none",
           }}
         />
 
-        <div className="iso-grid" style={{ width: gridW, height: gridH }}>
+        <div className="iso-grid" style={{ width: gridW, height: gridH, pointerEvents: "none" }}>
           {tiles.map((tile) => {
             const hasDesk = tile.idx < desks;
             const dev = hasDesk ? staff[tile.idx] : null;
@@ -127,6 +151,17 @@ export default function IsometricOffice({ state, derived, lang }) {
           })}
         </div>
 
+        {/* Floating +work indicators */}
+        {floats.map((f) => (
+          <span
+            key={f.id}
+            className={`sm-float ${f.coding ? "neon-green" : "neon-amber"}`}
+            style={{ left: f.x, top: f.y }}
+          >
+            {f.coding ? "+1 wp" : "+€1"}
+          </span>
+        ))}
+
         {desks === 0 && (
           <div
             style={{
@@ -138,13 +173,15 @@ export default function IsometricOffice({ state, derived, lang }) {
               color: "var(--sm-text-dim)",
               fontFamily: "JetBrains Mono, monospace",
               fontSize: 13,
+              pointerEvents: "none",
+              textAlign: "center",
+              padding: 20,
             }}
           >
-            <span className="blink">&gt; empty office</span>
+            <span className="blink">&gt; tap to code_</span>
           </div>
         )}
 
-        {/* Active project overlay */}
         {activeProject && activeTpl && (
           <div
             style={{
@@ -157,6 +194,7 @@ export default function IsometricOffice({ state, derived, lang }) {
               borderLeft: "3px solid var(--sm-neon-green)",
               borderRadius: 6,
               padding: "8px 10px",
+              pointerEvents: "none",
             }}
             data-testid="iso-active-project"
           >
@@ -165,7 +203,7 @@ export default function IsometricOffice({ state, derived, lang }) {
                 <span className="neon-green">&gt;</span> {activeTpl.name[lang]}
               </div>
               <div className="text-[10px] md:text-xs text-[color:var(--sm-text-dim)] shrink-0">
-                {Math.round((activeProject.workDone / activeProject.workTarget) * 100)}%
+                {Math.round(activeProject.workDone)}/{activeProject.workTarget} wp
               </div>
             </div>
             <div className="sm-bar">
